@@ -649,6 +649,697 @@ type AnalysisService struct {
 
 ---
 
+## 🔌 ARQUITECTURA DE PLUGINS
+
+### Filosofía
+El sistema está diseñado con una arquitectura de plugins modulares que permite:
+- **Intercambiar providers** sin modificar código core
+- **Configurar por instrumento**: cada ticker puede usar diferentes providers
+- **Hot-swap en runtime**: cambiar providers sin reiniciar (futuro)
+- **Testing aislado**: mockear cualquier provider fácilmente
+
+### Diagrama de Arquitectura
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      Plugin Registry                             │
+│              (Registro central de providers)                     │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │
+    ┌─────────────────────┼─────────────────────┬─────────────────┐
+    ▼                     ▼                     ▼                 ▼
+┌─────────┐         ┌──────────┐         ┌──────────┐      ┌──────────┐
+│   LLM   │         │ Database │         │  Market  │      │   News   │
+│ Provider│         │ Provider │         │   Data   │      │ Provider │
+│Interface│         │ Interface│         │ Provider │      │ Interface│
+└────┬────┘         └────┬─────┘         └────┬─────┘      └────┬─────┘
+     │                   │                    │                  │
+┌────┴────┐         ┌────┴────┐          ┌────┴────┐        ┌────┴────┐
+│• Ollama │         │•Postgres│          │• Yahoo  │        │• RSS    │
+│• Claude │         │•Firebase│          │• CoinGko│        │• NewsAPI│
+│• Gemini │         │• SQLite │          │• AlphaV │        │• Twitter│
+│• OpenAI │         │•Supabase│          │• Finnhub│        │• Reddit │
+│• Azure  │         │• Turso  │          │• Polygon│        │• Custom │
+└─────────┘         └──────────┘         └─────────┘        └─────────┘
+```
+
+### Interfaces Base (Contracts)
+
+```go
+// ===========================================
+// LLM PROVIDER INTERFACE
+// ===========================================
+type LLMProvider interface {
+    // Identificación
+    Name() string
+    
+    // Generación
+    Generate(ctx context.Context, prompt string, opts ...LLMOption) (string, error)
+    GenerateWithTools(ctx context.Context, prompt string, tools []Tool) (ToolResponse, error)
+    
+    // Streaming (para chat)
+    Stream(ctx context.Context, prompt string) (<-chan string, error)
+    
+    // Embeddings (para RAG futuro)
+    Embed(ctx context.Context, text string) ([]float32, error)
+    
+    // Health
+    Ping(ctx context.Context) error
+}
+
+// Implementaciones disponibles:
+// - OllamaProvider (local, gratis)
+// - ClaudeProvider (Anthropic API)
+// - GeminiProvider (Google AI)
+// - OpenAIProvider (OpenAI API)
+// - AzureOpenAIProvider (Azure)
+
+// ===========================================
+// DATABASE PROVIDER INTERFACE
+// ===========================================
+type DatabaseProvider interface {
+    // Conexión
+    Connect(ctx context.Context) error
+    Close() error
+    Ping(ctx context.Context) error
+    
+    // Operaciones CRUD genéricas
+    Query(ctx context.Context, query string, args ...any) (Rows, error)
+    Exec(ctx context.Context, query string, args ...any) (Result, error)
+    
+    // Transacciones
+    BeginTx(ctx context.Context) (Transaction, error)
+    
+    // Migraciones
+    Migrate(ctx context.Context, direction string) error
+}
+
+// Implementaciones disponibles:
+// - PostgresProvider (desarrollo local, producción)
+// - FirestoreProvider (Firebase/GCP)
+// - SQLiteProvider (testing, edge)
+// - SupabaseProvider (Postgres managed)
+// - TursoProvider (SQLite edge)
+
+// ===========================================
+// MARKET DATA PROVIDER INTERFACE
+// ===========================================
+type MarketDataProvider interface {
+    // Identificación
+    Name() string
+    SupportedAssets() []AssetType // stocks, etf, crypto, forex
+    
+    // Precios
+    GetPrice(ctx context.Context, symbol string) (Price, error)
+    GetPrices(ctx context.Context, symbols []string) (map[string]Price, error)
+    
+    // Histórico
+    GetHistorical(ctx context.Context, symbol string, period Period) ([]OHLCV, error)
+    
+    // Fundamentales (opcional)
+    GetFundamentals(ctx context.Context, symbol string) (Fundamentals, error)
+    
+    // Rate limiting info
+    RateLimit() RateLimitInfo
+}
+
+// Implementaciones disponibles:
+// - YahooFinanceProvider (gratis, stocks/ETF)
+// - CoinGeckoProvider (gratis, crypto)
+// - AlphaVantageProvider (freemium)
+// - FinnhubProvider (freemium)
+// - PolygonProvider (premium)
+
+// ===========================================
+// NEWS PROVIDER INTERFACE
+// ===========================================
+type NewsProvider interface {
+    // Identificación
+    Name() string
+    
+    // Fetch
+    FetchNews(ctx context.Context, symbol string, opts NewsOptions) ([]NewsItem, error)
+    FetchTrending(ctx context.Context) ([]NewsItem, error)
+    
+    // Streaming (opcional)
+    Subscribe(ctx context.Context, symbols []string) (<-chan NewsItem, error)
+}
+
+// Implementaciones disponibles:
+// - RSSProvider (Yahoo, Reuters, Google RSS)
+// - NewsAPIProvider (premium)
+// - TwitterProvider (sentimiento social)
+// - RedditProvider (comunidad)
+// - SeekingAlphaProvider (análisis)
+```
+
+### Plugin Registry
+
+```go
+// Registry central que gestiona todos los providers
+type PluginRegistry struct {
+    mu sync.RWMutex
+    
+    llmProviders      map[string]LLMProvider
+    dbProviders       map[string]DatabaseProvider
+    marketProviders   map[string]MarketDataProvider
+    newsProviders     map[string]NewsProvider
+    
+    // Default providers (configurados en startup)
+    defaultLLM    string
+    defaultDB     string
+    defaultMarket string
+    defaultNews   string
+}
+
+// Singleton global
+var Registry = NewPluginRegistry()
+
+// Registro de providers
+func (r *PluginRegistry) RegisterLLM(name string, provider LLMProvider) {
+    r.mu.Lock()
+    defer r.mu.Unlock()
+    r.llmProviders[name] = provider
+}
+
+// Obtener provider por nombre
+func (r *PluginRegistry) GetLLM(name string) (LLMProvider, error) {
+    r.mu.RLock()
+    defer r.mu.RUnlock()
+    
+    if provider, ok := r.llmProviders[name]; ok {
+        return provider, nil
+    }
+    return nil, fmt.Errorf("LLM provider '%s' not found", name)
+}
+
+// Obtener default
+func (r *PluginRegistry) DefaultLLM() LLMProvider {
+    return r.llmProviders[r.defaultLLM]
+}
+
+// Listar providers disponibles
+func (r *PluginRegistry) ListLLMProviders() []string {
+    r.mu.RLock()
+    defer r.mu.RUnlock()
+    
+    names := make([]string, 0, len(r.llmProviders))
+    for name := range r.llmProviders {
+        names = append(names, name)
+    }
+    return names
+}
+```
+
+### Configuración por Instrumento
+
+```yaml
+# config/instruments/default.yaml
+# Configuración por defecto para todos los instrumentos
+default:
+  llm: ollama-mistral
+  database: postgres-local
+  market_data: yahoo-finance
+  news: [rss-yahoo, rss-reuters]
+  agents:
+    analysis:
+      enabled: true
+      tools: [technical_indicators, fundamentals]
+    news:
+      enabled: true
+      tools: [fetch_rss, sentiment_analysis]
+```
+
+```yaml
+# config/instruments/AAPL.yaml
+# Override específico para Apple
+ticker: AAPL
+name: Apple Inc.
+type: stock
+
+providers:
+  llm: claude-sonnet      # Usar Claude para este ticker (mejor análisis)
+  market_data: yahoo-finance
+  news:
+    - rss-yahoo
+    - rss-seeking-alpha
+    - twitter-mentions    # Agregar Twitter para tech stocks
+
+agents:
+  analysis:
+    tools:
+      - technical_indicators
+      - fundamentals
+      - earnings_calendar
+      - insider_trading     # Tool extra para AAPL
+  news:
+    tools:
+      - fetch_rss
+      - sentiment_analysis
+      - product_launch_detector  # Tool específico para detectar lanzamientos
+```
+
+```yaml
+# config/instruments/BTC.yaml
+# Configuración específica para Bitcoin
+ticker: BTC
+name: Bitcoin
+type: crypto
+
+providers:
+  llm: ollama-mistral     # Local para crypto (más privacidad)
+  market_data: coingecko  # Especializado en crypto
+  news:
+    - rss-coindesk
+    - rss-cointelegraph
+    - reddit-crypto
+
+agents:
+  analysis:
+    tools:
+      - technical_indicators
+      - on_chain_metrics    # Métricas on-chain específicas
+      - whale_alerts        # Alertas de ballenas
+      - hash_rate           # Hash rate de la red
+  news:
+    tools:
+      - fetch_rss
+      - sentiment_analysis
+      - regulatory_scanner  # Detectar noticias regulatorias
+```
+
+### Loader de Configuración
+
+```go
+// InstrumentConfig representa la configuración de un instrumento
+type InstrumentConfig struct {
+    Ticker    string            `yaml:"ticker"`
+    Name      string            `yaml:"name"`
+    Type      string            `yaml:"type"` // stock, etf, crypto, forex
+    Providers ProvidersConfig   `yaml:"providers"`
+    Agents    AgentsConfig      `yaml:"agents"`
+}
+
+type ProvidersConfig struct {
+    LLM        string   `yaml:"llm"`
+    Database   string   `yaml:"database"`
+    MarketData string   `yaml:"market_data"`
+    News       []string `yaml:"news"`
+}
+
+// ConfigLoader carga y cachea configuraciones
+type ConfigLoader struct {
+    configDir string
+    cache     map[string]*InstrumentConfig
+    defaults  *InstrumentConfig
+}
+
+func (l *ConfigLoader) GetConfig(ticker string) (*InstrumentConfig, error) {
+    // 1. Buscar en cache
+    if cfg, ok := l.cache[ticker]; ok {
+        return cfg, nil
+    }
+    
+    // 2. Buscar archivo específico
+    path := filepath.Join(l.configDir, ticker+".yaml")
+    if _, err := os.Stat(path); err == nil {
+        cfg, err := l.loadFromFile(path)
+        if err != nil {
+            return nil, err
+        }
+        // Merge con defaults
+        cfg = l.mergeWithDefaults(cfg)
+        l.cache[ticker] = cfg
+        return cfg, nil
+    }
+    
+    // 3. Usar defaults
+    return l.defaults, nil
+}
+
+// GetProvidersForTicker obtiene los providers específicos para un ticker
+func GetProvidersForTicker(ticker string) (*TickerProviders, error) {
+    config, err := ConfigLoader.GetConfig(ticker)
+    if err != nil {
+        return nil, err
+    }
+    
+    llm, _ := Registry.GetLLM(config.Providers.LLM)
+    market, _ := Registry.GetMarketData(config.Providers.MarketData)
+    
+    newsProviders := make([]NewsProvider, 0)
+    for _, name := range config.Providers.News {
+        if np, err := Registry.GetNews(name); err == nil {
+            newsProviders = append(newsProviders, np)
+        }
+    }
+    
+    return &TickerProviders{
+        LLM:        llm,
+        MarketData: market,
+        News:       newsProviders,
+    }, nil
+}
+```
+
+### Ejemplo: Implementación de Ollama Provider
+
+```go
+package providers
+
+type OllamaProvider struct {
+    baseURL string
+    model   string
+    client  *http.Client
+}
+
+func NewOllamaProvider(baseURL, model string) *OllamaProvider {
+    return &OllamaProvider{
+        baseURL: baseURL, // http://localhost:11434
+        model:   model,   // mistral:7b
+        client:  &http.Client{Timeout: 60 * time.Second},
+    }
+}
+
+func (o *OllamaProvider) Name() string {
+    return fmt.Sprintf("ollama-%s", o.model)
+}
+
+func (o *OllamaProvider) Generate(ctx context.Context, prompt string, opts ...LLMOption) (string, error) {
+    reqBody := map[string]any{
+        "model":  o.model,
+        "prompt": prompt,
+        "stream": false,
+    }
+    
+    jsonBody, _ := json.Marshal(reqBody)
+    req, _ := http.NewRequestWithContext(ctx, "POST", o.baseURL+"/api/generate", bytes.NewBuffer(jsonBody))
+    req.Header.Set("Content-Type", "application/json")
+    
+    resp, err := o.client.Do(req)
+    if err != nil {
+        return "", fmt.Errorf("ollama request failed: %w", err)
+    }
+    defer resp.Body.Close()
+    
+    var result struct {
+        Response string `json:"response"`
+    }
+    json.NewDecoder(resp.Body).Decode(&result)
+    
+    return result.Response, nil
+}
+
+func (o *OllamaProvider) Stream(ctx context.Context, prompt string) (<-chan string, error) {
+    ch := make(chan string)
+    
+    go func() {
+        defer close(ch)
+        
+        reqBody := map[string]any{
+            "model":  o.model,
+            "prompt": prompt,
+            "stream": true,
+        }
+        
+        jsonBody, _ := json.Marshal(reqBody)
+        req, _ := http.NewRequestWithContext(ctx, "POST", o.baseURL+"/api/generate", bytes.NewBuffer(jsonBody))
+        
+        resp, err := o.client.Do(req)
+        if err != nil {
+            return
+        }
+        defer resp.Body.Close()
+        
+        decoder := json.NewDecoder(resp.Body)
+        for {
+            var chunk struct {
+                Response string `json:"response"`
+                Done     bool   `json:"done"`
+            }
+            if err := decoder.Decode(&chunk); err != nil {
+                break
+            }
+            ch <- chunk.Response
+            if chunk.Done {
+                break
+            }
+        }
+    }()
+    
+    return ch, nil
+}
+
+func (o *OllamaProvider) Ping(ctx context.Context) error {
+    req, _ := http.NewRequestWithContext(ctx, "GET", o.baseURL+"/api/version", nil)
+    resp, err := o.client.Do(req)
+    if err != nil {
+        return err
+    }
+    resp.Body.Close()
+    return nil
+}
+```
+
+### Ejemplo: Implementación de Claude Provider
+
+```go
+package providers
+
+type ClaudeProvider struct {
+    apiKey string
+    model  string
+    client *http.Client
+}
+
+func NewClaudeProvider(apiKey, model string) *ClaudeProvider {
+    return &ClaudeProvider{
+        apiKey: apiKey,
+        model:  model, // claude-3-5-sonnet-20241022
+        client: &http.Client{Timeout: 120 * time.Second},
+    }
+}
+
+func (c *ClaudeProvider) Name() string {
+    return fmt.Sprintf("claude-%s", c.model)
+}
+
+func (c *ClaudeProvider) Generate(ctx context.Context, prompt string, opts ...LLMOption) (string, error) {
+    reqBody := map[string]any{
+        "model":      c.model,
+        "max_tokens": 4096,
+        "messages": []map[string]string{
+            {"role": "user", "content": prompt},
+        },
+    }
+    
+    jsonBody, _ := json.Marshal(reqBody)
+    req, _ := http.NewRequestWithContext(ctx, "POST", "https://api.anthropic.com/v1/messages", bytes.NewBuffer(jsonBody))
+    req.Header.Set("Content-Type", "application/json")
+    req.Header.Set("x-api-key", c.apiKey)
+    req.Header.Set("anthropic-version", "2023-06-01")
+    
+    resp, err := c.client.Do(req)
+    if err != nil {
+        return "", err
+    }
+    defer resp.Body.Close()
+    
+    var result struct {
+        Content []struct {
+            Text string `json:"text"`
+        } `json:"content"`
+    }
+    json.NewDecoder(resp.Body).Decode(&result)
+    
+    if len(result.Content) > 0 {
+        return result.Content[0].Text, nil
+    }
+    return "", fmt.Errorf("empty response from Claude")
+}
+```
+
+### Startup: Registrar Providers
+
+```go
+// cmd/api/main.go
+func main() {
+    // Cargar configuración
+    cfg := config.Load()
+    
+    // ==========================================
+    // REGISTRAR LLM PROVIDERS
+    // ==========================================
+    
+    // Ollama (siempre disponible en local)
+    if cfg.Ollama.Enabled {
+        ollama := providers.NewOllamaProvider(cfg.Ollama.URL, cfg.Ollama.Model)
+        plugins.Registry.RegisterLLM("ollama-mistral", ollama)
+        plugins.Registry.RegisterLLM("ollama-llama3", 
+            providers.NewOllamaProvider(cfg.Ollama.URL, "llama3:8b"))
+    }
+    
+    // Claude (si hay API key)
+    if cfg.Claude.APIKey != "" {
+        claude := providers.NewClaudeProvider(cfg.Claude.APIKey, "claude-3-5-sonnet-20241022")
+        plugins.Registry.RegisterLLM("claude-sonnet", claude)
+    }
+    
+    // Gemini (si hay API key)
+    if cfg.Gemini.APIKey != "" {
+        gemini := providers.NewGeminiProvider(cfg.Gemini.APIKey)
+        plugins.Registry.RegisterLLM("gemini-pro", gemini)
+    }
+    
+    // ==========================================
+    // REGISTRAR DATABASE PROVIDERS
+    // ==========================================
+    
+    postgres := providers.NewPostgresProvider(cfg.Database.URL)
+    plugins.Registry.RegisterDatabase("postgres-local", postgres)
+    
+    if cfg.Firebase.Enabled {
+        firebase := providers.NewFirestoreProvider(cfg.Firebase.ProjectID)
+        plugins.Registry.RegisterDatabase("firebase", firebase)
+    }
+    
+    // ==========================================
+    // REGISTRAR MARKET DATA PROVIDERS
+    // ==========================================
+    
+    yahoo := providers.NewYahooFinanceProvider()
+    plugins.Registry.RegisterMarketData("yahoo-finance", yahoo)
+    
+    coingecko := providers.NewCoinGeckoProvider()
+    plugins.Registry.RegisterMarketData("coingecko", coingecko)
+    
+    if cfg.AlphaVantage.APIKey != "" {
+        av := providers.NewAlphaVantageProvider(cfg.AlphaVantage.APIKey)
+        plugins.Registry.RegisterMarketData("alpha-vantage", av)
+    }
+    
+    // ==========================================
+    // REGISTRAR NEWS PROVIDERS
+    // ==========================================
+    
+    rssYahoo := providers.NewRSSProvider("https://feeds.finance.yahoo.com/rss/2.0/")
+    plugins.Registry.RegisterNews("rss-yahoo", rssYahoo)
+    
+    rssReuters := providers.NewRSSProvider("https://www.reutersagency.com/feed/")
+    plugins.Registry.RegisterNews("rss-reuters", rssReuters)
+    
+    // ==========================================
+    // SET DEFAULTS
+    // ==========================================
+    
+    plugins.Registry.SetDefaults(
+        "ollama-mistral",  // LLM
+        "postgres-local",  // Database
+        "yahoo-finance",   // Market Data
+        "rss-yahoo",       // News
+    )
+    
+    // Iniciar servidor...
+}
+```
+
+### Uso en Servicios
+
+```go
+// internal/service/analysis_service.go
+type AnalysisService struct {
+    configLoader *ConfigLoader
+}
+
+func (s *AnalysisService) AnalyzeTicker(ctx context.Context, ticker string) (*Analysis, error) {
+    // Obtener providers específicos para este ticker
+    providers, err := GetProvidersForTicker(ticker)
+    if err != nil {
+        return nil, err
+    }
+    
+    // Usar el market data provider configurado
+    price, err := providers.MarketData.GetPrice(ctx, ticker)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get price: %w", err)
+    }
+    
+    historical, err := providers.MarketData.GetHistorical(ctx, ticker, Period{Days: 200})
+    if err != nil {
+        return nil, fmt.Errorf("failed to get historical: %w", err)
+    }
+    
+    // Calcular indicadores técnicos
+    indicators := CalculateIndicators(historical)
+    
+    // Usar el LLM provider configurado para generar narrativa
+    prompt := BuildAnalysisPrompt(ticker, price, indicators)
+    narrative, err := providers.LLM.Generate(ctx, prompt)
+    if err != nil {
+        return nil, fmt.Errorf("failed to generate narrative: %w", err)
+    }
+    
+    // Obtener noticias de todos los news providers configurados
+    var allNews []NewsItem
+    for _, np := range providers.News {
+        news, _ := np.FetchNews(ctx, ticker, NewsOptions{Limit: 10})
+        allNews = append(allNews, news...)
+    }
+    
+    return &Analysis{
+        Ticker:      ticker,
+        Price:       price,
+        Indicators:  indicators,
+        Narrative:   narrative,
+        News:        allNews,
+        GeneratedAt: time.Now(),
+    }, nil
+}
+```
+
+### API Endpoints para Gestión de Plugins
+
+```
+-- PLUGINS (Admin)
+GET    /admin/plugins                    # Listar todos los plugins registrados
+GET    /admin/plugins/llm                # Listar LLM providers
+GET    /admin/plugins/market-data        # Listar Market Data providers
+GET    /admin/plugins/news               # Listar News providers
+POST   /admin/plugins/test/:provider     # Probar conexión a un provider
+
+-- CONFIGURACIÓN DE INSTRUMENTOS
+GET    /instruments/:ticker/config       # Ver configuración de un ticker
+PUT    /instruments/:ticker/config       # Actualizar configuración
+POST   /instruments/:ticker/config/reset # Resetear a defaults
+```
+
+### Testing con Mocks
+
+```go
+// Fácil de mockear gracias a las interfaces
+type MockLLMProvider struct {
+    mock.Mock
+}
+
+func (m *MockLLMProvider) Generate(ctx context.Context, prompt string, opts ...LLMOption) (string, error) {
+    args := m.Called(ctx, prompt)
+    return args.String(0), args.Error(1)
+}
+
+func TestAnalysisService(t *testing.T) {
+    // Crear mock
+    mockLLM := new(MockLLMProvider)
+    mockLLM.On("Generate", mock.Anything, mock.Anything).Return("Análisis positivo...", nil)
+    
+    // Registrar mock en lugar de provider real
+    plugins.Registry.RegisterLLM("test-llm", mockLLM)
+    
+    // Ejecutar test...
+}
+```
+
+---
+
 ## ESPECIFICACIÓN DETALLADA
 
 ### Database Schema
