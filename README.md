@@ -25,8 +25,8 @@
 
 | Capa | Tecnología |
 |------|-----------|
-| **Frontend** | React 18 + TypeScript + Tailwind CSS |
-| **Backend** | Go 1.21+ (Gin Framework) |
+| **Frontend** | React 18.3+ + TypeScript + Tailwind CSS 3.4 |
+| **Backend** | Go 1.23+ (Gin Framework) |
 | **Database** | PostgreSQL 15 + Redis 7 |
 | **IA** | Ollama (mistral:7b) + ReAct Agents |
 | **Data** | Yahoo Finance + CoinGecko + RSS Feeds |
@@ -39,8 +39,8 @@
 ### Prerrequisitos
 
 - Docker & Docker Compose
-- Go 1.21+
-- Node.js 18+
+- Go 1.23+
+- Node.js 20+
 - Make
 
 ### Instalación

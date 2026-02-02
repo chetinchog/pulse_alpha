@@ -360,15 +360,15 @@ Shared Infrastructure:
 ### Stack Detallado
 
 **Frontend**:
-- React 18+ con TypeScript
-- Tailwind CSS + custom CSS modules
+- React 18.3+ con TypeScript
+- Tailwind CSS 3.4+ + custom CSS modules
 - State: Zustand
 - Charts: TradingView Lightweight Charts / Recharts
 - HTTP: Axios + interceptors
 - WebSocket: Socket.io (updates en tiempo real)
 - Testing: Jest + React Testing Library
 
-**Backend (Go 1.21+)**:
+**Backend (Go 1.23+)**:
 
 ```go
 // Gin Framework
