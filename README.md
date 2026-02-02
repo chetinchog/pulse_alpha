@@ -98,8 +98,7 @@ make ollama-setup   # Descargar modelo IA
 ## 📚 Documentación
 
 - [📘 Especificación Técnica](./SPEC_TECNICA.md) - Arquitectura completa
-- [📗 Síntesis Ejecutiva](./SINTESIS_EJECUTIVA.md) - Resumen del proyecto
-- [📙 Comparación V3 vs V4](./COMPARACION_V3_vs_V4.md) - Historial de cambios
+- [� Transferencia (Handoff)](./HANDOFF.md) - Estado actual y próximos pasos
 
 ---
 
