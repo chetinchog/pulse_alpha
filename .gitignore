@@ -30,6 +30,8 @@ Thumbs.db
 # ==========================================
 backend/bin/
 backend/tmp/
+backend/api
+backend/pulsealpha-api
 backend/coverage.out
 backend/coverage.html
 *.exe
