@@ -16,6 +16,7 @@ export default function Dashboard() {
   const [loadingHistory, setLoadingHistory] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [initialTicker, setInitialTicker] = useState<string>('')
 
   const fetchData = async () => {
     try {
@@ -54,12 +55,28 @@ export default function Dashboard() {
       await portfolioApi.createSellTransaction(data)
     }
     await fetchData()
-    setIsModalOpen(false) // Close modal after successful add
+    setIsModalOpen(false)
+    setInitialTicker('') // Clear initial ticker after adding
   }
 
   const handleDeletePosition = async (id: string) => {
     await portfolioApi.deletePosition(id)
     await fetchData()
+  }
+
+  const handleOpenModal = () => {
+    setInitialTicker('')
+    setIsModalOpen(true)
+  }
+
+  const handleOpenModalWithTicker = (ticker: string) => {
+    setInitialTicker(ticker)
+    setIsModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setInitialTicker('')
   }
 
   if (error) {
@@ -84,16 +101,17 @@ export default function Dashboard() {
         positions={positions}
         loading={loadingPositions}
         onDelete={handleDeletePosition}
-        onOpenModal={() => setIsModalOpen(true)}
+        onOpenModal={handleOpenModal}
+        onOpenModalWithTicker={handleOpenModalWithTicker}
       />
 
       {/* Modal for adding position */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={handleCloseModal}
         title="Nueva Operación"
       >
-        <AddPositionForm onAdd={handleAddPosition} />
+        <AddPositionForm onAdd={handleAddPosition} initialTicker={initialTicker} />
       </Modal>
     </div>
   )

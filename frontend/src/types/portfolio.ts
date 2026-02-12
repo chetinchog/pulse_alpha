@@ -68,6 +68,7 @@ export interface GroupedPosition {
 export interface PortfolioSummary {
   total_value: number
   total_cost: number
+  total_invested: number
   unrealized_pl: number
   unrealized_pl_percent: number
   realized_pl: number

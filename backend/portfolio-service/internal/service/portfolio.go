@@ -335,24 +335,23 @@ func (s *PortfolioService) GetPortfolioSummary(ctx context.Context) (*domain.Por
 
 	summary.TotalPL = summary.UnrealizedPL + summary.RealizedPL
 
+	// Calculate total invested (sum of all buy transactions)
+	allTxns, _ := s.transactionRepo.GetAll(ctx)
+	for _, txn := range allTxns {
+		if txn.OperationType == domain.OperationBuy {
+			summary.TotalInvested += txn.TotalAmount
+		}
+	}
+
 	if summary.TotalCost > 0 {
 		summary.UnrealizedPLPercent = (summary.UnrealizedPL / summary.TotalCost) * 100
 	}
 
 	// Total P&L percent is based on total capital deployed (including sold positions)
-	// When all positions are closed, use realized P&L as denominator
+	// When all positions are closed, use total invested as denominator
 	totalCapitalDeployed := summary.TotalCost
 	if totalCapitalDeployed == 0 && summary.RealizedPL != 0 {
-		// All positions closed, calculate based on realized gains
-		// Get all transactions to calculate original investment
-		allTxns, _ := s.transactionRepo.GetAll(ctx)
-		var totalInvested float64
-		for _, txn := range allTxns {
-			if txn.OperationType == domain.OperationBuy {
-				totalInvested += txn.TotalAmount
-			}
-		}
-		totalCapitalDeployed = totalInvested
+		totalCapitalDeployed = summary.TotalInvested
 	}
 
 	if totalCapitalDeployed > 0 {

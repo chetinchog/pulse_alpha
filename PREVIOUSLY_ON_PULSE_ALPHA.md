@@ -1,6 +1,6 @@
 # Previously On Pulse Alpha
 
-**Last Updated**: 2026-02-12
+**Last Updated**: 2026-02-13
 
 ## Quick Status
 
@@ -47,12 +47,18 @@
    - Add position modal with buy/sell tabs
    - Transaction history modal with pagination (20 items per page)
 
-6. **Recent Fixes**
-   - Fixed realized P&L showing $0 when all positions closed (now queries repository directly)
-   - Fixed "Operar" button disappearing when no positions exist
-   - Added transaction deletion functionality
+6. **Recent Features & Fixes**
+   - Portfolio Summary: Added "Inversión Total" field (sum of all buy transactions)
+   - Position List: Quantity format up to 8 decimals with trailing zeros removed (for BTC precision)
+   - Actions Column: Replaced expand/collapse with 3 action buttons (Add, History, Delete)
+   - Ticker History Modal: New dedicated modal for ticker-specific transactions and P&L summary
+   - Modal Portal: All modals render at body level using React Portal for proper z-index
+   - Scroll Optimization: Modals scroll only in table area, keeping summaries fixed
+   - Consistency: Changed all "P/L" to "P&L" across the application
+   - Best Performer Icon: Changed from trophy to golden star (⭐) with sparkle animation
+   - Quick Actions: "+" button pre-fills ticker in transaction form
+   - Fixed realized P&L showing $0 when all positions closed
    - Fixed dark mode overscroll showing white borders
-   - Changed title from "Pulse Alpha - Portfolio Manager" to "Pulse Alpha"
 
 ### 🔄 Architecture
 
@@ -232,17 +238,20 @@ r.Mount("/", handlers.SetupRoutes(handler))  // Routes added last
 ### 📝 Session Context
 
 **Last Major Work**:
-1. Implemented time period selector for portfolio chart (hour/day/month/year with quantity input)
-2. Created transaction history modal with pagination (20 items/page)
-3. Added "Histórico" button next to "Operar" in position list
-4. Implemented DELETE endpoint for transactions in backend
-5. Fixed dark mode overscroll white borders
-6. Cleaned up title branding to just "Pulse Alpha"
+1. Added "Inversión Total" field to Portfolio Summary (backend + frontend)
+2. Redesigned Position List actions: removed expand/collapse, added action buttons column
+3. Created TickerHistoryModal component with 2-row summary layout (6 cards) and table scroll
+4. Implemented Modal Portal system for proper z-index layering
+5. Optimized modal scrolling: fixed headers/summaries, scrollable tables only
+6. Updated quantity display to 8 decimals without trailing zeros (BTC precision)
+7. Changed P/L notation to P&L for consistency across all components
+8. Replaced trophy icon with golden star for best performer (with sparkle animation)
+9. Added ticker pre-fill functionality when opening transaction modal from position list
 
 **Current State**:
 - All services running and tested
-- Memory cleaned (fresh state for testing)
-- Frontend on port 5174, backend on 8080
+- Frontend on port 5173, backend on 8080
+- New UI patterns: action buttons, ticker-specific modals, optimized scrolling
 - No pending bugs or issues
 
 **Git Branch**: `prod`

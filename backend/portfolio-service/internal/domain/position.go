@@ -46,6 +46,7 @@ type GroupedPosition struct {
 type PortfolioSummary struct {
 	TotalValue          float64 `json:"total_value"`           // Current market value of all positions
 	TotalCost           float64 `json:"total_cost"`            // Total invested in open positions
+	TotalInvested       float64 `json:"total_invested"`        // Total amount invested (all buy transactions)
 	UnrealizedPL        float64 `json:"unrealized_pl"`         // P&L on open positions
 	UnrealizedPLPercent float64 `json:"unrealized_pl_percent"`
 	RealizedPL          float64 `json:"realized_pl"`           // Lifetime realized P&L

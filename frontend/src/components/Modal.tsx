@@ -1,13 +1,15 @@
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 
 interface Props {
   isOpen: boolean
   onClose: () => void
   title: string
   children: React.ReactNode
+  disableScroll?: boolean
 }
 
-export default function Modal({ isOpen, onClose, title, children }: Props) {
+export default function Modal({ isOpen, onClose, title, children, disableScroll = false }: Props) {
   const modalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -19,7 +21,6 @@ export default function Modal({ isOpen, onClose, title, children }: Props) {
 
     if (isOpen) {
       document.addEventListener('keydown', handleEscape)
-      // Prevent body scroll when modal is open
       document.body.style.overflow = 'hidden'
     }
 
@@ -37,10 +38,10 @@ export default function Modal({ isOpen, onClose, title, children }: Props) {
 
   if (!isOpen) return null
 
-  return (
+  return createPortal(
     <>
       <style>{`
-        @keyframes fadeIn {
+        @keyframes modalFadeIn {
           from {
             opacity: 0;
           }
@@ -49,42 +50,42 @@ export default function Modal({ isOpen, onClose, title, children }: Props) {
           }
         }
 
-        @keyframes slideUp {
+        @keyframes modalSlideUp {
           from {
-            transform: translateY(20px);
+            transform: translateY(30px) scale(0.97);
             opacity: 0;
           }
           to {
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
             opacity: 1;
           }
         }
 
         .modal-overlay {
-          animation: fadeIn 0.2s ease-out;
+          animation: modalFadeIn 0.2s ease-out;
         }
 
         .modal-content {
-          animation: slideUp 0.3s ease-out;
+          animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
       `}</style>
 
       <div
-        className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 dark:bg-black/70 backdrop-blur-sm"
+        className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-sm"
         onClick={handleOverlayClick}
       >
         <div
           ref={modalRef}
-          className="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden transition-colors duration-200"
+          className="modal-content bg-white dark:bg-gray-800 rounded-xl shadow-soft-xl border border-gray-200 dark:border-gray-700 w-full max-w-2xl max-h-[90vh] overflow-hidden transition-colors duration-200"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-800">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               {title}
             </h2>
             <button
               onClick={onClose}
-              className="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150"
+              className="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-150 button-press"
               aria-label="Cerrar modal"
             >
               <svg
@@ -104,11 +105,12 @@ export default function Modal({ isOpen, onClose, title, children }: Props) {
           </div>
 
           {/* Content */}
-          <div className="px-6 py-4 overflow-y-auto max-h-[calc(90vh-80px)]">
+          <div className={`px-6 py-4 ${disableScroll ? 'flex flex-col h-[calc(90vh-80px)]' : 'overflow-y-auto max-h-[calc(90vh-80px)]'}`}>
             {children}
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   )
 }
