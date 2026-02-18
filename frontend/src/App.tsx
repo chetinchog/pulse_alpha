@@ -26,6 +26,27 @@ function App() {
           <Dashboard />
         </div>
       </main>
+
+      {/* Footer with version and credits */}
+      <footer className="fixed bottom-4 right-4 z-10">
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg shadow-soft border border-gray-200/50 dark:border-gray-700/50 px-4 py-2 transition-all duration-200 hover:shadow-soft-lg">
+          <div className="text-right space-y-0.5">
+            <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+              v1.1.2
+            </p>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              By iCTG
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-500 flex items-center justify-end gap-1">
+              Powered by
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
+              </svg>
+              Claude
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

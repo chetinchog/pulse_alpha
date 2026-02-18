@@ -1,6 +1,6 @@
 # Previously On Pulse Alpha
 
-**Last Updated**: 2026-02-13
+**Last Updated**: 2026-02-06
 
 ## Quick Status
 
@@ -54,9 +54,11 @@
    - Ticker History Modal: New dedicated modal for ticker-specific transactions and P&L summary
    - Modal Portal: All modals render at body level using React Portal for proper z-index
    - Scroll Optimization: Modals scroll only in table area, keeping summaries fixed
-   - Consistency: Changed all "P/L" to "P&L" across the application
+   - Consistency: Changed all "P/L" to "P&G" across the application
    - Best Performer Icon: Changed from trophy to golden star (⭐) with sparkle animation
    - Quick Actions: "+" button pre-fills ticker in transaction form
+   - Portfolio Chart: Added P&L line (green) showing profit/loss evolution over time
+   - Footer: Added version display (v1.1.2), credits (By iCTG), and attribution (Powered by Claude)
    - Fixed realized P&L showing $0 when all positions closed
    - Fixed dark mode overscroll showing white borders
 
@@ -247,11 +249,15 @@ r.Mount("/", handlers.SetupRoutes(handler))  // Routes added last
 7. Changed P/L notation to P&L for consistency across all components
 8. Replaced trophy icon with golden star for best performer (with sparkle animation)
 9. Added ticker pre-fill functionality when opening transaction modal from position list
+10. Added P&L line to portfolio evolution chart (green line)
+11. Added footer with version (v1.1.2), credits (By iCTG), and Powered by Claude attribution
 
 **Current State**:
 - All services running and tested
-- Frontend on port 5173, backend on 8080
+- Frontend on port 5174, backend on 8080
 - New UI patterns: action buttons, ticker-specific modals, optimized scrolling
+- Portfolio chart now shows 3 lines: Market Value, Total Cost, and P&L
+- Footer displays version, credits, and attribution
 - No pending bugs or issues
 
 **Git Branch**: `prod`

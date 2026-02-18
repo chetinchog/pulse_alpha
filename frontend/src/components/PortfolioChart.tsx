@@ -176,13 +176,24 @@ export default function PortfolioChart({ history, loading }: Props) {
                 dot={{ r: 4, fill: '#6b7280' }}
                 strokeDasharray="5 5"
               />
+              <Line
+                type="monotone"
+                dataKey="profitLoss"
+                name="P&L"
+                stroke="#10b981"
+                strokeWidth={2}
+                dot={{ r: 4, fill: '#10b981' }}
+                activeDot={{ r: 7, stroke: '#10b981', strokeWidth: 2, fill: '#fff' }}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
         <div className="mt-4 px-4 py-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-200/50 dark:border-gray-600/30">
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Cada punto representa una operación registrada (compra o venta).
-            El gráfico muestra la evolución del valor total del portfolio.
+            <span className="font-medium text-indigo-600 dark:text-indigo-400"> Valor de Mercado</span> es el valor actual,
+            <span className="font-medium text-gray-600 dark:text-gray-400"> Costo Total</span> es tu inversión, y
+            <span className="font-medium text-green-600 dark:text-green-400"> P&L</span> muestra tu ganancia/pérdida.
           </p>
         </div>
       </div>
