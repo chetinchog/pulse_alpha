@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/joho/godotenv"
 	"github.com/mgonzalez/pulse_alpha/market-data-service/internal/adapters/providers"
 	"github.com/mgonzalez/pulse_alpha/market-data-service/internal/adapters/repository"
 	"github.com/mgonzalez/pulse_alpha/market-data-service/internal/handlers"
@@ -15,6 +16,10 @@ import (
 )
 
 func main() {
+	// Load shared environment variables
+	_ = godotenv.Load("../.env")
+	_ = godotenv.Load() // Fallback current directory just in case
+
 	// Initialize dependencies
 	cache := repository.NewMemoryCache()
 	provider := providers.NewStubProvider()

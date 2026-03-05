@@ -86,6 +86,22 @@ export default function TransactionHistoryModal({ isOpen, onClose }: Props) {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)))
   }
 
+  const handleExportTransactions = async () => {
+    try {
+      await portfolioApi.exportTransactions()
+    } catch (error) {
+      console.error('Failed to export transactions:', error)
+    }
+  }
+
+  const handleExportRealizedPL = async () => {
+    try {
+      await portfolioApi.exportRealizedPL()
+    } catch (error) {
+      console.error('Failed to export realized P&L:', error)
+    }
+  }
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Histórico de Transacciones" disableScroll={true}>
       {loading ? (
@@ -121,6 +137,28 @@ export default function TransactionHistoryModal({ isOpen, onClose }: Props) {
               <p className="text-xs font-medium text-red-600 dark:text-red-400 uppercase tracking-wide">Ventas</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stats.sells}</p>
             </div>
+          </div>
+
+          {/* Export Buttons */}
+          <div className="flex items-center gap-3 mb-6 animate-slideInLeft">
+            <button
+              onClick={handleExportTransactions}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-all duration-200 hover:shadow-indigo-500/20 active:scale-95 group"
+            >
+              <svg className="w-4 h-4 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Exportar Transacciones (CSV)
+            </button>
+            <button
+              onClick={handleExportRealizedPL}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-all duration-200 hover:shadow-blue-500/20 active:scale-95 group"
+            >
+              <svg className="w-4 h-4 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Exportar P&G Realizado (CSV)
+            </button>
           </div>
 
           {/* Milestone Badges - Fixed */}

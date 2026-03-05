@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mgonzalez/pulse_alpha/portfolio-service/internal/domain"
@@ -74,6 +77,50 @@ func (h *HTTPHandler) GetAllTransactions(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(transactions)
 }
 
+// ExportTransactionsToCSV handles GET /transactions/export
+func (h *HTTPHandler) ExportTransactionsToCSV(w http.ResponseWriter, r *http.Request) {
+	ticker := r.URL.Query().Get("ticker")
+	var transactions []domain.Transaction
+	var err error
+
+	if ticker != "" {
+		transactions, err = h.portfolioService.GetTransactionsByTicker(r.Context(), ticker)
+	} else {
+		transactions, err = h.portfolioService.GetAllTransactions(r.Context())
+	}
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	filename := "transactions.csv"
+	if ticker != "" {
+		filename = fmt.Sprintf("transactions_%s.csv", ticker)
+	}
+
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment;filename=%s", filename))
+
+	writer := csv.NewWriter(w)
+	defer writer.Flush()
+
+	// Header
+	writer.Write([]string{"ID", "Ticker", "Type", "Quantity", "Price", "Total", "Executed At"})
+
+	for _, txn := range transactions {
+		writer.Write([]string{
+			txn.ID,
+			txn.Ticker,
+			string(txn.OperationType),
+			fmt.Sprintf("%.8f", txn.Quantity),
+			fmt.Sprintf("%.2f", txn.Price),
+			fmt.Sprintf("%.2f", txn.TotalAmount),
+			txn.ExecutedAt.Format(time.RFC3339),
+		})
+	}
+}
+
 // GetRealizedPL handles GET /realized-pl
 func (h *HTTPHandler) GetRealizedPL(w http.ResponseWriter, r *http.Request) {
 	realizedPLs, err := h.portfolioService.GetRealizedPL(r.Context())
@@ -84,6 +131,51 @@ func (h *HTTPHandler) GetRealizedPL(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(realizedPLs)
+}
+
+// ExportRealizedPLToCSV handles GET /realized-pl/export
+func (h *HTTPHandler) ExportRealizedPLToCSV(w http.ResponseWriter, r *http.Request) {
+	ticker := r.URL.Query().Get("ticker")
+	var realizedPLs []domain.RealizedPL
+	var err error
+
+	if ticker != "" {
+		realizedPLs, err = h.portfolioService.GetRealizedPLByTicker(r.Context(), ticker)
+	} else {
+		realizedPLs, err = h.portfolioService.GetRealizedPL(r.Context())
+	}
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	filename := "realized_pl.csv"
+	if ticker != "" {
+		filename = fmt.Sprintf("realized_pl_%s.csv", ticker)
+	}
+
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment;filename=%s", filename))
+
+	writer := csv.NewWriter(w)
+	defer writer.Flush()
+
+	// Header
+	writer.Write([]string{"ID", "Ticker", "Quantity", "Sell Price", "Cost Basis", "Realized P&G", "P&G %", "Executed At"})
+
+	for _, pl := range realizedPLs {
+		writer.Write([]string{
+			pl.ID,
+			pl.Ticker,
+			fmt.Sprintf("%.8f", pl.Quantity),
+			fmt.Sprintf("%.2f", pl.SellPrice),
+			fmt.Sprintf("%.2f", pl.CostBasis),
+			fmt.Sprintf("%.2f", pl.RealizedPL),
+			fmt.Sprintf("%.2f", pl.PLPercent),
+			pl.ExecutedAt.Format(time.RFC3339),
+		})
+	}
 }
 
 // GetRealizedPLSummary handles GET /realized-pl/summary
@@ -219,10 +311,12 @@ func SetupRoutes(handler *HTTPHandler) *chi.Mux {
 	r.Post("/transactions/buy", handler.CreateBuyTransaction)
 	r.Post("/transactions/sell", handler.CreateSellTransaction)
 	r.Get("/transactions", handler.GetAllTransactions)
+	r.Get("/transactions/export", handler.ExportTransactionsToCSV)
 	r.Delete("/transactions/{id}", handler.DeleteTransaction)
 
 	// Realized P&L endpoints
 	r.Get("/realized-pl", handler.GetRealizedPL)
+	r.Get("/realized-pl/export", handler.ExportRealizedPLToCSV)
 	r.Get("/realized-pl/summary", handler.GetRealizedPLSummary)
 
 	// Position endpoints (existing + deprecated)

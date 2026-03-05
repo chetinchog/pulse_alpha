@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { auth } from '../firebase';
 import {
   EnrichedPosition,
   GroupedPosition,
@@ -16,6 +17,34 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Request interceptor: attach Firebase ID token to every request
+api.interceptors.request.use(async (config) => {
+  const currentUser = auth.currentUser;
+  if (currentUser) {
+    const token = await currentUser.getIdToken();
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Response interceptor: handle 418 (user not enabled) globally
+// The actual UI reaction is handled by the onBlockedCallback registered below
+let onBlockedCallback: (() => void) | null = null;
+
+export function registerBlockedCallback(cb: () => void) {
+  onBlockedCallback = cb;
+}
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 418) {
+      onBlockedCallback?.();
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const portfolioApi = {
   // Transaction endpoints (new API)
@@ -39,10 +68,34 @@ export const portfolioApi = {
     return response.data;
   },
 
+  exportTransactions: async (ticker?: string): Promise<void> => {
+    const url_path = ticker ? `/transactions/export?ticker=${ticker}` : '/transactions/export';
+    const response = await api.get(url_path, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', ticker ? `transactions_${ticker}.csv` : 'transactions.csv');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  },
+
   // Realized P&L endpoints
   getRealizedPL: async (): Promise<RealizedPL[]> => {
     const response = await api.get<RealizedPL[]>('/realized-pl');
     return response.data;
+  },
+
+  exportRealizedPL: async (ticker?: string): Promise<void> => {
+    const url_path = ticker ? `/realized-pl/export?ticker=${ticker}` : '/realized-pl/export';
+    const response = await api.get(url_path, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', ticker ? `realized_pl_${ticker}.csv` : 'realized_pl.csv');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   },
 
   getRealizedPLSummary: async (): Promise<{ total_realized_pl: number; by_ticker: Record<string, number> }> => {
@@ -72,7 +125,7 @@ export const portfolioApi = {
     return response.data;
   },
 
-  // Legacy delete endpoint (will need backend implementation)
+  // Legacy delete endpoint
   deletePosition: async (id: string): Promise<void> => {
     await api.delete(`/positions/${id}`);
   },

@@ -60,11 +60,35 @@ export default function TickerHistoryModal({ isOpen, onClose, ticker, position }
   const buyCount = transactions.filter(t => t.operation_type === 'buy').length
   const sellCount = transactions.filter(t => t.operation_type === 'sell').length
 
+  const handleExport = async () => {
+    try {
+      await portfolioApi.exportTransactions(ticker)
+    } catch (error) {
+      console.error('Failed to export ticker transactions:', error)
+    }
+  }
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Histórico de ${ticker}`} disableScroll={true}>
       <div className="flex flex-col h-full overflow-hidden">
         {/* Summary Cards - Fixed at top, no scroll */}
         <div className="space-y-3 mb-6">
+          {/* Header Row: Row with title-like info and Export Button */}
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              Resumen de Posición
+            </h3>
+            <button
+              onClick={handleExport}
+              className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-all duration-200 active:scale-95 group"
+            >
+              <svg className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Exportar CSV
+            </button>
+          </div>
+
           {/* First Row: Cantidad, Costo, Valor */}
           <div className="grid grid-cols-3 gap-3">
             <div className="px-4 py-3 bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-700/50 dark:to-gray-700/30 rounded-lg border border-gray-200/50 dark:border-gray-600/30">

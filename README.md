@@ -84,6 +84,7 @@ Open **http://localhost:5173** (or 5174 if 5173 is taken)
 - **Dark Mode** - Full theme support with toggle
 - **Delete Transactions** - Remove incorrect entries
 - **Clean Architecture** - Ready for database adapter integration
+- **Google Authentication** - Secured via Firebase Auth & Firestore with an `is_enabled` gate validation
 
 ### UI Highlights
 
@@ -98,7 +99,7 @@ Open **http://localhost:5173** (or 5174 if 5173 is taken)
 
 - Real price feeds (Yahoo Finance, CoinGecko APIs)
 - Database persistence (PostgreSQL adapter)
-- User authentication & multi-user support
+- Multi-user data isolation (Currently global)
 - Transaction editing capability
 - Historical price charts with candlesticks
 - WebSocket for live price updates

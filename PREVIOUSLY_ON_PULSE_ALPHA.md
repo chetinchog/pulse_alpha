@@ -1,6 +1,6 @@
 # Previously On Pulse Alpha
 
-**Last Updated**: 2026-02-06
+**Last Updated**: 2026-02-26
 
 ## Quick Status
 
@@ -42,23 +42,24 @@
 5. **UI Components**
    - Dashboard with dark mode support
    - Portfolio summary card (total value, cost, P&L)
-   - Portfolio chart with time period selector (last X hours/days/months/years)
+   - Portfolio chart with time filter
    - Position list with grouping by ticker
    - Add position modal with buy/sell tabs
-   - Transaction history modal with pagination (20 items per page)
+   - Transaction history modal with pagination and CSV export
+   - Ticker history modal with summary cards and ticker-specific CSV export
 
 6. **Recent Features & Fixes**
-   - Portfolio Summary: Added "Inversión Total" field (sum of all buy transactions)
-   - Position List: Quantity format up to 8 decimals with trailing zeros removed (for BTC precision)
+   - **CSV Export**: Added functionality to export all transactions and realized P&L to CSV from the history modal.
+   - **Filtered Export**: Added support for exporting ticker-specific transaction history from the Ticker History Modal.
+   - **Backend Export Handlers**: Implemented `ExportTransactionsToCSV` and `ExportRealizedPLToCSV` with ticker filtering support.
+   - Portfolio Summary: Added "Inversión Total" field
+   - Position List: Quantity format up to 8 decimals
    - Actions Column: Replaced expand/collapse with 3 action buttons (Add, History, Delete)
-   - Ticker History Modal: New dedicated modal for ticker-specific transactions and P&L summary
-   - Modal Portal: All modals render at body level using React Portal for proper z-index
-   - Scroll Optimization: Modals scroll only in table area, keeping summaries fixed
+   - Ticker History Modal: New dedicated modal for ticker-specific transactions
+   - Modal Portal: All modals render at body level using React Portal
    - Consistency: Changed all "P/L" to "P&G" across the application
-   - Best Performer Icon: Changed from trophy to golden star (⭐) with sparkle animation
-   - Quick Actions: "+" button pre-fills ticker in transaction form
-   - Portfolio Chart: Added P&L line (green) showing profit/loss evolution over time
-   - Footer: Added version display (v1.1.2), credits (By iCTG), and attribution (Powered by Claude)
+   - Portfolio Chart: Added P&L line (green) showing profit/loss evolution
+   - Footer: Added version display (v1.1.3), credits (By iCTG), and attribution
    - Fixed realized P&L showing $0 when all positions closed
    - Fixed dark mode overscroll showing white borders
 
